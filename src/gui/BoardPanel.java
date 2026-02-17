@@ -16,10 +16,11 @@ public class BoardPanel extends JPanel {
     private static final Color DARK = new Color(181, 136, 99);
     private static final Color SELECTED = new Color(255, 255, 0, 120);
     private static final Color HIGHLIGHT = new Color(0, 255, 0, 80);
+    private static final String IMAGE_DIR = "/gui/resources/images/";
 
-    private Position position;
+    private final Position position;
     private int selectedRow = -1, selectedCol = -1;
-    private List<Move> legalMoves;
+    private List<Move> allLegalMoves;
     private boolean playingAgainstAI = true;
     private boolean playerIsWhite = true;
     private final Map<Character, Image> pieceImages = new HashMap<>();
@@ -35,20 +36,17 @@ public class BoardPanel extends JPanel {
 
     private void loadPieceImages() {
         try {
-            pieceImages.put('K', ImageIO.read(getClass().getResource("/gui/resources/images/wk.png")));
-            pieceImages.put('Q', ImageIO.read(getClass().getResource("/gui/resources/images/wq.png")));
-            pieceImages.put('R', ImageIO.read(getClass().getResource("/gui/resources/images/wr.png")));
-            pieceImages.put('B', ImageIO.read(getClass().getResource("/gui/resources/images/wb.png")));
-            pieceImages.put('N', ImageIO.read(getClass().getResource("/gui/resources/images/wn.png")));
-            pieceImages.put('P', ImageIO.read(getClass().getResource("/gui/resources/images/wp.png")));
-
-            pieceImages.put('k', ImageIO.read(getClass().getResource("/gui/resources/images/bk.png")));
-            pieceImages.put('q', ImageIO.read(getClass().getResource("/gui/resources/images/bq.png")));
-            pieceImages.put('r', ImageIO.read(getClass().getResource("/gui/resources/images/br.png")));
-            pieceImages.put('b', ImageIO.read(getClass().getResource("/gui/resources/images/bb.png")));
-            pieceImages.put('n', ImageIO.read(getClass().getResource("/gui/resources/images/bn.png")));
-            pieceImages.put('p', ImageIO.read(getClass().getResource("/gui/resources/images/bp.png")));
-
+            char[] pieces = {'K','k', 'Q', 'q','R', 'r', 'N', 'n', 'P', 'p', 'B', 'b'};
+            for (char piece : pieces){
+                String colorPrefix;
+                if (Character.isUpperCase(piece)) {
+                    colorPrefix = "w";
+                } else {
+                    colorPrefix = "b";
+                }
+                String fileName = IMAGE_DIR + colorPrefix + Character.toLowerCase(piece) + ".png";
+                pieceImages.put(piece, ImageIO.read(getClass().getResource(fileName)));
+            }
             System.out.println("Images loaded successfully!");
         } catch (Exception e) {
             System.out.println("Error loading images: " + e.getMessage());
@@ -90,7 +88,7 @@ public class BoardPanel extends JPanel {
         } else {
             // Try to move
             int fromSquare = (7 - selectedRow) * 8 + selectedCol;
-            Move selectedMove = findMove(fromSquare, square);
+            Move selectedMove = findMove(fromSquare, square, allLegalMoves);
 
             if (selectedMove != null) {
                 makeMove(selectedMove);
@@ -98,7 +96,7 @@ public class BoardPanel extends JPanel {
                 // If invalid move, just clear selection
                 selectedRow = -1;
                 selectedCol = -1;
-                legalMoves = null;
+                allLegalMoves = null;
                 repaint();
             }
         }
@@ -113,16 +111,17 @@ public class BoardPanel extends JPanel {
     }
 
     private void highlightLegalMoves() {
-        legalMoves = MoveGenerator.generateLegalMoves(position);
+        allLegalMoves = MoveGenerator.generateLegalMoves(position);
         int fromSquare = (7 - selectedRow) * 8 + selectedCol;
 
         // Filter to only moves from selected square
-        legalMoves.removeIf(m -> m.from != fromSquare);
+        allLegalMoves.removeIf(m -> m.from != fromSquare);
     }
 
-    private Move findMove(int from, int to) {
-        List<Move> allMoves = MoveGenerator.generateLegalMoves(position);
-        for (Move m : allMoves) {
+
+
+    private Move findMove(int from, int to, List<Move> allLegalMoves) {
+        for (Move m : allLegalMoves) {
             if (m.from == from && m.to == to) {
                 // Handle promotion - for now just promote to queen
                 if (m.isPromotion) {
@@ -139,16 +138,13 @@ public class BoardPanel extends JPanel {
         // Clear highlights immediately
         selectedRow = -1;
         selectedCol = -1;
-        legalMoves = null;
+        allLegalMoves = null;
         repaint();
 
         // Check for game over
-        if (MoveGenerator.generateLegalMoves(position).isEmpty()) {
-            if (position.isKingInCheck(position.isWhiteTurn)) {
-                JOptionPane.showMessageDialog(this, "Checkmate!");
-            } else {
-                JOptionPane.showMessageDialog(this, "Stalemate!");
-            }
+        String gameStatus = isGameOver();
+        if (gameStatus != null){
+            JOptionPane.showMessageDialog(this, gameStatus);
             return;
         }
 
@@ -156,6 +152,18 @@ public class BoardPanel extends JPanel {
         if (playingAgainstAI && position.isWhiteTurn != playerIsWhite) {
             makeAIMove();
         }
+    }
+
+
+    private String isGameOver(){
+        if (MoveGenerator.generateLegalMoves(position).isEmpty()){
+            if (position.isKingInCheck(position.isWhiteTurn)){
+                return "Checkmate!";
+            } else {
+                return  "Stalemate!";
+            }
+        }
+        return null;
     }
 
 
@@ -180,18 +188,16 @@ public class BoardPanel extends JPanel {
                     if (aiMove != null) {
                         position.makeMove(aiMove);  // Only modify GUI position once
 
-                        legalMoves = null;
+                        allLegalMoves = null;
                         selectedRow = -1;
                         selectedCol = -1;
 
                         repaint();
 
-                        if (MoveGenerator.generateLegalMoves(position).isEmpty()) {
-                            if (position.isKingInCheck(position.isWhiteTurn)) {
-                                JOptionPane.showMessageDialog(BoardPanel.this, "Checkmate!");
-                            } else {
-                                JOptionPane.showMessageDialog(BoardPanel.this, "Stalemate!");
-                            }
+                        String gameStatus = isGameOver();
+                        if (gameStatus != null){
+                            JOptionPane.showMessageDialog(BoardPanel.this, gameStatus);
+                            return;
                         }
                     }
                 } catch (Exception e) {
@@ -224,7 +230,7 @@ public class BoardPanel extends JPanel {
     private void drawHighlights(Graphics g) {
         // Don't draw highlights during AI's turn
         if (playingAgainstAI && position.isWhiteTurn != playerIsWhite) {
-            legalMoves = null;
+            allLegalMoves = null;
             return;
         }
 
@@ -233,9 +239,9 @@ public class BoardPanel extends JPanel {
             g.fillRect(selectedCol * TILE_SIZE, selectedRow * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         }
 
-        if (legalMoves != null) {
+        if (allLegalMoves != null) {
             g.setColor(HIGHLIGHT);
-            for (Move m : legalMoves) {
+            for (Move m : allLegalMoves) {
                 int row = 7 - (m.to / 8);
                 int col = m.to % 8;
                 g.fillOval(col * TILE_SIZE + TILE_SIZE/3, row * TILE_SIZE + TILE_SIZE/3,
