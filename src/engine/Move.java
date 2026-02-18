@@ -52,6 +52,11 @@ public class Move {
         int rank = square / 8;
         return "" + (char)('a' + file) + (rank + 1);
     }
+
+
+    public boolean isCapture() {
+        return capturedPiece != '\0' && capturedPiece != '.';
+    }
 }
 
 

@@ -1,5 +1,6 @@
 package engine;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Search {
@@ -42,7 +43,7 @@ public class Search {
     private static int minimax(Position position, int depth, int alpha, int beta) {
         // Base case: reached depth limit or game over
         if (depth == 0) {
-            return Evaluator.evaluate(position);
+            return quiesce(position, alpha, beta, 5);
         }
 
         List<Move> legalMoves = MoveGenerator.generateLegalMoves(position);
@@ -92,5 +93,82 @@ public class Search {
             }
             return minScore;
         }
+    }
+
+
+
+    private static int quiesce(Position position, int alpha, int beta, int depth){
+        //get static evaluation of current position
+        int standPat = Evaluator.evaluate(position);
+
+        if (depth <= 0){
+            return standPat;
+        }
+
+        // If this position is already too good (for the side to move),
+        // we can prune—no need to search further
+        if (position.isWhiteTurn) {
+            if (standPat >= beta) {
+                return beta;
+            }
+            if (standPat > alpha) {
+                alpha = standPat;
+            }
+        } else {
+            if (standPat <= alpha) {
+                return alpha;
+            }
+            if (standPat < beta) {
+                beta = standPat;
+            }
+        }
+
+        List<Move> allMoves = MoveGenerator.generateMoves(position);
+        List<Move> forcingMoves = new ArrayList<>();
+        for (Move move : allMoves) {
+            if (move.isCapture()) {
+                forcingMoves.add(move);
+            }
+        }
+
+        // If no forcing moves, return the standing pat score
+        if (forcingMoves.isEmpty()) {
+            return standPat;
+        }
+
+        if (position.isWhiteTurn) {
+            int maxScore = standPat;  // Start with standing pat
+
+            for (Move move : forcingMoves) {
+                GameState saved = position.makeMove(move);
+                int score = quiesce(position, alpha, beta, depth -1);  // Recursive call
+                position.unmakeMove(move, saved);
+
+                maxScore = Math.max(maxScore, score);
+                alpha = Math.max(alpha, score);
+
+                if (alpha >= beta) {
+                    break;  // Beta cutoff
+                }
+            }
+            return maxScore;
+        } else {
+            int minScore = standPat;  // Start with standing pat
+
+            for (Move move : forcingMoves) {
+                GameState saved = position.makeMove(move);
+                int score = quiesce(position, alpha, beta, depth -1);  // Recursive call
+                position.unmakeMove(move, saved);
+
+                minScore = Math.min(minScore, score);
+                beta = Math.min(beta, score);
+
+                if (alpha >= beta) {
+                    break;  // Beta cutoff
+                }
+            }
+            return minScore;
+        }
+
     }
 }
