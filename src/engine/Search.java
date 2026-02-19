@@ -43,7 +43,7 @@ public class Search {
     private static int minimax(Position position, int depth, int alpha, int beta) {
         // Base case: reached depth limit or game over
         if (depth == 0) {
-            return quiesce(position, alpha, beta, 5);
+            return quiesce(position, alpha, beta, 3);
         }
 
         List<Move> legalMoves = MoveGenerator.generateLegalMoves(position);
