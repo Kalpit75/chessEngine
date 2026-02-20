@@ -19,24 +19,30 @@ public class BoardPanel extends JPanel {
     private static final String IMAGE_DIR = "/gui/resources/images/";
     private static final Color LAST_MOVE = new Color(215, 183, 17, 150); // olive green tint
 
-    private Move lastMove = null;
-    private final Position position;
     private int selectedRow = -1, selectedCol = -1;
     private List<Move> allLegalMoves;
-    private boolean playingAgainstAI = true;
-    private boolean playerIsWhite = true;
     private final Map<Character, Image> pieceImages = new HashMap<>();
+    private GameController controller;
+
 
     public BoardPanel(boolean playerIsWhite) {
-        this.playerIsWhite = playerIsWhite;
+        controller = new GameController(playerIsWhite, () -> {
+            selectedRow = -1;
+            selectedCol = -1;
+            allLegalMoves = null;
+            repaint();
+            String gameStatus = controller.isGameOver();
+            if (gameStatus != null) {
+                JOptionPane.showMessageDialog(this, gameStatus);
+            }
+        });
         setPreferredSize(new Dimension(8 * TILE_SIZE, 8 * TILE_SIZE));
-        position = new Position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
         loadPieceImages();
         initMouse();
     }
 
     private int toScreenRow(int square){
-        if (playerIsWhite){
+        if (controller.isPlayerWhite()){
             return 7 - (square / 8);
         }else {
             return square / 8;
@@ -44,7 +50,7 @@ public class BoardPanel extends JPanel {
     }
 
     private int toScreenCol(int square){
-        if (playerIsWhite){
+        if (controller.isPlayerWhite()){
             return square % 8;
         } else {
             return 7 - (square % 8);
@@ -52,7 +58,7 @@ public class BoardPanel extends JPanel {
     }
 
     private int toSquare(int row, int col){
-        if (playerIsWhite){
+        if (controller.isPlayerWhite()){
             return (7 - row) * 8 + col;
         } else {
             return row * 8 + (7 - col);
@@ -84,8 +90,8 @@ public class BoardPanel extends JPanel {
 
     private void initMouse() {
         // If player is Black, AI needs to move first
-        if (!playerIsWhite) {
-            makeAIMove();
+        if (!controller.isPlayerWhite()) {
+            controller.makeAIMove();
         }
 
         addMouseListener(new MouseAdapter() {
@@ -102,7 +108,7 @@ public class BoardPanel extends JPanel {
 
     private void handleClick(int row, int col) {
         // If playing against AI, and it's AI's turn, ignore clicks
-        if (playingAgainstAI && position.isWhiteTurn != playerIsWhite) {
+        if (!controller.isPlayerTurn()) {
             return;
         }
 
@@ -110,7 +116,7 @@ public class BoardPanel extends JPanel {
 
         if (selectedRow == -1) {
             // Select piece
-            char piece = position.getPieceAt(square);
+            char piece = controller.getPosition().getPieceAt(square);
             if (piece != '.' && isOurPiece(piece)) {
                 selectedRow = row;
                 selectedCol = col;
@@ -123,7 +129,7 @@ public class BoardPanel extends JPanel {
             Move selectedMove = findMove(fromSquare, square, allLegalMoves);
 
             if (selectedMove != null) {
-                makeMove(selectedMove);
+                controller.makeMove(selectedMove);
             }else{
                 // If invalid move, just clear selection
                 selectedRow = -1;
@@ -135,7 +141,7 @@ public class BoardPanel extends JPanel {
     }
 
     private boolean isOurPiece(char piece) {
-        if (position.isWhiteTurn) {
+        if (controller.getPosition().isWhiteTurn) {
             return Character.isUpperCase(piece);
         } else {
             return Character.isLowerCase(piece);
@@ -143,7 +149,7 @@ public class BoardPanel extends JPanel {
     }
 
     private void highlightLegalMoves() {
-        allLegalMoves = MoveGenerator.generateLegalMoves(position);
+        allLegalMoves = MoveGenerator.generateLegalMoves(controller.getPosition());
         int fromSquare = toSquare(selectedRow, selectedCol);
 
         // Filter to only moves from selected square
@@ -157,7 +163,7 @@ public class BoardPanel extends JPanel {
             if (m.from == from && m.to == to) {
                 // Handle promotion - for now just promote to queen
                 if (m.isPromotion) {
-                    m.setPromotion(position.isWhiteTurn ? 'Q' : 'q');
+                    m.setPromotion(controller.getPosition().isWhiteTurn ? 'Q' : 'q');
                 }
                 return m;
             }
@@ -165,82 +171,6 @@ public class BoardPanel extends JPanel {
         return null;
     }
 
-    private void makeMove(Move move) {
-        position.makeMove(move);
-        lastMove = move;
-        // Clear highlights immediately
-        selectedRow = -1;
-        selectedCol = -1;
-        allLegalMoves = null;
-        repaint();
-
-        // Check for game over
-        String gameStatus = isGameOver();
-        if (gameStatus != null){
-            JOptionPane.showMessageDialog(this, gameStatus);
-            return;
-        }
-
-        // AI move
-        if (playingAgainstAI && position.isWhiteTurn != playerIsWhite) {
-            makeAIMove();
-        }
-    }
-
-
-    private String isGameOver(){
-        if (MoveGenerator.generateLegalMoves(position).isEmpty()){
-            if (position.isKingInCheck(position.isWhiteTurn)){
-                return "Checkmate!";
-            } else {
-                return  "Stalemate!";
-            }
-        }
-        return null;
-    }
-
-
-
-    private void makeAIMove() {
-
-        // Make a copy of the position for search!
-        final String currentFEN = position.toFEN();
-
-        SwingWorker<Move, Void> worker = new SwingWorker<>() {
-            @Override
-            protected Move doInBackground() {
-                // Search on a COPY, not the GUI's position!
-                Position searchPosition = new Position(currentFEN);
-                return Search.findBestMove(searchPosition, 3);
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    Move aiMove = get();
-                    if (aiMove != null) {
-                        position.makeMove(aiMove);  // Only modify GUI position once
-                        lastMove = aiMove;
-
-                        allLegalMoves = null;
-                        selectedRow = -1;
-                        selectedCol = -1;
-
-                        repaint();
-
-                        String gameStatus = isGameOver();
-                        if (gameStatus != null){
-                            JOptionPane.showMessageDialog(BoardPanel.this, gameStatus);
-                            return;
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        };
-        worker.execute();
-    }
 
 
     @Override
@@ -263,18 +193,18 @@ public class BoardPanel extends JPanel {
 
     private void drawHighlights(Graphics g) {
         // Draw last move highlight
-        if (lastMove != null) {
+        if (controller.getLastMove() != null) {
             g.setColor(LAST_MOVE);
-            int fromRow = toScreenRow(lastMove.from);
-            int fromCol = toScreenCol(lastMove.from);
-            int toRow   = toScreenRow(lastMove.to);
-            int toCol   = toScreenCol(lastMove.to);
+            int fromRow = toScreenRow(controller.getLastMove().from);
+            int fromCol = toScreenCol(controller.getLastMove().from);
+            int toRow   = toScreenRow(controller.getLastMove().to);
+            int toCol   = toScreenCol(controller.getLastMove().to);
             g.fillRect(fromCol * TILE_SIZE, fromRow * TILE_SIZE, TILE_SIZE, TILE_SIZE);
             g.fillRect(toCol   * TILE_SIZE, toRow   * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         }
 
         // Don't draw highlights during AI's turn
-        if (playingAgainstAI && position.isWhiteTurn != playerIsWhite) {
+        if (!controller.isPlayerTurn()) {
             allLegalMoves = null;
             return;
         }
@@ -300,7 +230,7 @@ public class BoardPanel extends JPanel {
         for (int square = 0; square < 64; square++){
             int row = toScreenRow(square);
             int col = toScreenCol(square);
-            char piece = position.getPieceAt(square);
+            char piece = controller.getPosition().getPieceAt(square);
             if (piece != '.' && pieceImages.containsKey(piece)) {
                 Image img = pieceImages.get(piece);
                 g.drawImage(img, col * TILE_SIZE + 8, row * TILE_SIZE + 8,
