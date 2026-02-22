@@ -29,7 +29,7 @@ public class GameController {
     public boolean isPlayerWhite(){ return playerIsWhite;}
     public boolean isPlayerTurn(){return position.isWhiteTurn == playerIsWhite;}
 
-    
+
     public String isGameOver(){
         if (MoveGenerator.generateLegalMoves(position).isEmpty()){
             if (position.isKingInCheck(position.isWhiteTurn)){
