@@ -1,3 +1,9 @@
+![Java](https://img.shields.io/badge/Java-21-orange)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
+## Screenshot
+![Chess Engine Screenshot](screenshot.png)
+
 # Chess Engine with Bitboard Representation
 
 A complete chess engine built in Java from scratch, featuring bitboard representation,
@@ -23,22 +29,28 @@ minimax search with alpha-beta pruning, and a Swing-based GUI.
 
 1. Clone the repository
 2. Open in your Java IDE
-3. Run `gui/BoardPanel.java`
-4. Play as white against the AI (black)
+3. Run `gui/ChessApp.java`
 
 ## Project Structure
 ```
 src/
 ├── engine/
-│   ├── Position.java          # Bitboard position representation
-│   ├── Move.java              # Move representation
-│   ├── MoveGenerator.java     # Move generation logic
-│   ├── Evaluator.java         # Position evaluation
-│   ├── Search.java            # Minimax + alpha-beta
-│   └── GameState.java         # State snapshot for unmake
+│   ├── Evaluator.java
+│   ├── GameState.java
+│   ├── MoveGenerator.java
+│   ├── Move.java
+│   ├── Position.java
+│   └── Search.java
 └── gui/
-    ├── BoardPanel.java        # Chess GUI
+    ├── BoardPanel.java
+    ├── ChessApp.java
+    ├── ChessClock.java
+    ├── ClockPanel.java
+    ├── GameController.java
+    ├── GameSetupDialog.java
+    │── SoundPlayer.java
     └── resources/
-        ├── images/            # Piece images
-        └── sounds/            # Move sounds
+       ├── images
+       └── sounds
 
+```
