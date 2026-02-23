@@ -25,7 +25,7 @@ public class BoardPanel extends JPanel {
     private GameController controller;
 
 
-    public BoardPanel(boolean playerIsWhite) {
+    public BoardPanel(boolean playerIsWhite, Runnable onTick) {
         controller = new GameController(playerIsWhite, () -> {
             selectedRow = -1;
             selectedCol = -1;
@@ -35,7 +35,7 @@ public class BoardPanel extends JPanel {
             if (gameStatus != null) {
                 JOptionPane.showMessageDialog(this, gameStatus);
             }
-        });
+        }, onTick);
         setPreferredSize(new Dimension(8 * TILE_SIZE, 8 * TILE_SIZE));
         loadPieceImages();
         initMouse();
@@ -242,6 +242,11 @@ public class BoardPanel extends JPanel {
 
     private boolean inBounds(int r, int c) {
         return r >= 0 && r < 8 && c >= 0 && c < 8;
+    }
+
+    //getter funcitons
+    public GameController getController(){
+        return controller;
     }
 
 }

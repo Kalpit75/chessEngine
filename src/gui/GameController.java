@@ -14,8 +14,12 @@ public class GameController {
     private Runnable onMoveComplete;
     private boolean playerIsWhite;
     private boolean playingAgainstAI;
+    private final ChessClock clock;
 
-    public GameController(boolean playerIsWhite, Runnable onMoveComplete){
+    public GameController(boolean playerIsWhite, Runnable onMoveComplete, Runnable onTick){
+        clock = new ChessClock(3, onTick);
+        clock.start();
+
         this.playerIsWhite = playerIsWhite;
         this.onMoveComplete = onMoveComplete;
         this.playingAgainstAI = true;
@@ -28,6 +32,7 @@ public class GameController {
     public Move getLastMove() { return lastMove;}
     public boolean isPlayerWhite(){ return playerIsWhite;}
     public boolean isPlayerTurn(){return position.isWhiteTurn == playerIsWhite;}
+    public ChessClock getClock() {return clock;}
 
 
     public String isGameOver(){
@@ -49,6 +54,11 @@ public class GameController {
         SwingWorker<Move, Void> worker = new SwingWorker<>() {
             @Override
             protected Move doInBackground() {
+                try {
+                    Thread.sleep(1000);
+                }catch (InterruptedException e){
+                    e.printStackTrace();
+                }
                 // Search on a COPY, not the GUI's position!
                 Position searchPosition = new Position(currentFEN);
                 return Search.findBestMove(searchPosition, 3);
@@ -61,6 +71,7 @@ public class GameController {
                     if (aiMove != null) {
                         position.makeMove(aiMove);  // Only modify GUI position once
                         lastMove = aiMove;
+                        clock.switchClock();
 
                         onMoveComplete.run();
                     }
@@ -75,7 +86,7 @@ public class GameController {
     public void makeMove(Move move) {
         position.makeMove(move);
         lastMove = move;
-
+        clock.switchClock();
         onMoveComplete.run();
 
         // AI move
